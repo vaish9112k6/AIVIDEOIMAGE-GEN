@@ -9,7 +9,7 @@ from telegram.ext import (
 
 CONFIG_FILE = "config.json"
 
-# --- Load or create config ---
+# --- Load config or create default ---
 if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r") as f:
         config = json.load(f)
@@ -22,19 +22,30 @@ else:
         "VID_BUTTON": "Video 🎬"
     }
 
-# --- Interactive menu to edit settings ---
+# --- Clear screen ---
+def clear_screen():
+    os.system('clear' if os.name == 'posix' else 'cls')
+
+# --- Print fancy header ---
+def print_header():
+    print("▚▘ ▟▛ █▬█ ▜▙ ▞▚ ▛\n")
+    print("      ⚡ AI Image & Video Bot ⚡\n")
+    print("────────────────────────────────────────\n")
+
+# --- Interactive settings editor with numbered menu ---
 def edit_config():
     while True:
-        print("\n--- BOT SETTINGS EDITOR ---")
-        print(f"1. Bot Token        : {config.get('BOT_TOKEN')}")
-        print(f"2. Owner ID         : {config.get('OWNER_ID')}")
-        print(f"3. Start Message    : {config.get('START_MSG')}")
-        print(f"4. Image Button     : {config.get('IMG_BUTTON')}")
-        print(f"5. Video Button     : {config.get('VID_BUTTON')}")
-        print("6. Save & Exit")
-        print("7. Exit without saving")
-
-        choice = input("\nEnter number to edit (or 6 to save & continue): ").strip()
+        clear_screen()
+        print_header()
+        print("[1] Edit Bot Token        : {}".format(config.get("BOT_TOKEN")))
+        print("[2] Edit Owner ID         : {}".format(config.get("OWNER_ID")))
+        print("[3] Edit Start Message    : {}".format(config.get("START_MSG")))
+        print("[4] Edit Image Button     : {}".format(config.get("IMG_BUTTON")))
+        print("[5] Edit Video Button     : {}".format(config.get("VID_BUTTON")))
+        print("[6] Save & Exit")
+        print("[7] Exit without saving")
+        print("────────────────────────────────────────")
+        choice = input("Enter number to edit: ").strip()
 
         if choice == "1":
             config["BOT_TOKEN"] = input("Enter new Bot Token: ").strip()
@@ -49,15 +60,15 @@ def edit_config():
         elif choice == "6":
             with open(CONFIG_FILE, "w") as f:
                 json.dump(config, f, indent=4)
-            print("✅ Config saved. Continuing...")
+            print("\n✅ Config saved. Continuing...")
             break
         elif choice == "7":
-            print("❌ Exiting without saving.")
+            print("\n❌ Exiting without saving.")
             exit()
         else:
             print("❌ Invalid choice. Try again.")
 
-# --- Ask to edit settings on first run or empty fields ---
+# --- Ask to edit settings if missing or first run ---
 if not config["BOT_TOKEN"] or not config["OWNER_ID"]:
     print("⚡ First run setup or missing Bot Token/Owner ID")
     edit_config()
@@ -116,5 +127,7 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 app.add_handler(CallbackQueryHandler(button_handler))
 
-print("Bot is running...")
+clear_screen()
+print_header()
+print("Bot is starting...\n")
 app.run_polling()
