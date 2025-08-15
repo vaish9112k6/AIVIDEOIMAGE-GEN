@@ -9,25 +9,62 @@ from telegram.ext import (
 
 CONFIG_FILE = "config.json"
 
-# --- Interactive setup ---
-if not os.path.exists(CONFIG_FILE):
-    bot_token = input("Enter your Bot Token: ").strip()
-    owner_id = input("Enter your Telegram ID (Owner): ").strip()
-    start_msg = input("Enter your /start message: ").strip()
-    img_button = input("Text for Image button (default: Image 🖼️): ").strip() or "Image 🖼️"
-    vid_button = input("Text for Video button (default: Video 🎬): ").strip() or "Video 🎬"
-    config = {
-        "BOT_TOKEN": bot_token,
-        "OWNER_ID": owner_id,
-        "START_MSG": start_msg,
-        "IMG_BUTTON": img_button,
-        "VID_BUTTON": vid_button
-    }
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f)
-else:
+# --- Load or create config ---
+if os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "r") as f:
         config = json.load(f)
+else:
+    config = {
+        "BOT_TOKEN": "",
+        "OWNER_ID": "",
+        "START_MSG": "🤖 Welcome! Send me a prompt.",
+        "IMG_BUTTON": "Image 🖼️",
+        "VID_BUTTON": "Video 🎬"
+    }
+
+# --- Interactive menu to edit settings ---
+def edit_config():
+    while True:
+        print("\n--- BOT SETTINGS EDITOR ---")
+        print(f"1. Bot Token        : {config.get('BOT_TOKEN')}")
+        print(f"2. Owner ID         : {config.get('OWNER_ID')}")
+        print(f"3. Start Message    : {config.get('START_MSG')}")
+        print(f"4. Image Button     : {config.get('IMG_BUTTON')}")
+        print(f"5. Video Button     : {config.get('VID_BUTTON')}")
+        print("6. Save & Exit")
+        print("7. Exit without saving")
+
+        choice = input("\nEnter number to edit (or 6 to save & continue): ").strip()
+
+        if choice == "1":
+            config["BOT_TOKEN"] = input("Enter new Bot Token: ").strip()
+        elif choice == "2":
+            config["OWNER_ID"] = input("Enter new Owner ID: ").strip()
+        elif choice == "3":
+            config["START_MSG"] = input("Enter new Start Message: ").strip()
+        elif choice == "4":
+            config["IMG_BUTTON"] = input("Enter new Image Button Text: ").strip()
+        elif choice == "5":
+            config["VID_BUTTON"] = input("Enter new Video Button Text: ").strip()
+        elif choice == "6":
+            with open(CONFIG_FILE, "w") as f:
+                json.dump(config, f, indent=4)
+            print("✅ Config saved. Continuing...")
+            break
+        elif choice == "7":
+            print("❌ Exiting without saving.")
+            exit()
+        else:
+            print("❌ Invalid choice. Try again.")
+
+# --- Ask to edit settings on first run or empty fields ---
+if not config["BOT_TOKEN"] or not config["OWNER_ID"]:
+    print("⚡ First run setup or missing Bot Token/Owner ID")
+    edit_config()
+else:
+    edit = input("Do you want to edit bot settings? (y/n): ").strip().lower()
+    if edit == "y":
+        edit_config()
 
 bot_token = config["BOT_TOKEN"]
 owner_id = config["OWNER_ID"]
