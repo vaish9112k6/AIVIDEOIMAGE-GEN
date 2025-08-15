@@ -8,6 +8,7 @@ from telegram.ext import (
 )
 
 CONFIG_FILE = "config.json"
+REPO_URL = "https://github.com/vaish9112k6/AIVIDEOIMAGE-GEN.git"
 
 # --- Load config or create default ---
 if os.path.exists(CONFIG_FILE):
@@ -32,7 +33,7 @@ def print_header():
     print("      ⚡ AI Image & Video Bot ⚡\n")
     print("────────────────────────────────────────\n")
 
-# --- Interactive settings editor with numbered menu ---
+# --- Interactive settings editor ---
 def edit_config():
     while True:
         clear_screen()
@@ -68,6 +69,33 @@ def edit_config():
         else:
             print("❌ Invalid choice. Try again.")
 
+# --- Git update function ---
+def update_git():
+    print("\n⏳ Updating Git repository...")
+    os.system(f"git pull {REPO_URL}")
+    print("✅ Git update completed. Press Enter to continue...")
+    input()
+
+# --- Post-header menu before starting bot ---
+def pre_start_menu():
+    while True:
+        clear_screen()
+        print_header()
+        print("Bot is starting...\n")
+        print("[1] Back to Edit Settings")
+        print("[2] Update Git Repository")
+        print("[3] Start Bot")
+        choice = input("Choose an option: ").strip()
+
+        if choice == "1":
+            edit_config()
+        elif choice == "2":
+            update_git()
+        elif choice == "3":
+            break
+        else:
+            print("❌ Invalid choice. Try again.")
+
 # --- Ask to edit settings if missing or first run ---
 if not config["BOT_TOKEN"] or not config["OWNER_ID"]:
     print("⚡ First run setup or missing Bot Token/Owner ID")
@@ -82,6 +110,9 @@ owner_id = config["OWNER_ID"]
 start_msg = config.get("START_MSG", "🤖 Welcome! Send me a prompt.")
 IMG_BUTTON = config.get("IMG_BUTTON", "Image 🖼️")
 VID_BUTTON = config.get("VID_BUTTON", "Video 🎬")
+
+# --- Pre-start menu ---
+pre_start_menu()
 
 # --- /start command ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -120,7 +151,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         await msg.delete()
 
-# --- Main ---
+# --- Main bot ---
 app = ApplicationBuilder().token(bot_token).build()
 
 app.add_handler(CommandHandler("start", start))
@@ -129,5 +160,5 @@ app.add_handler(CallbackQueryHandler(button_handler))
 
 clear_screen()
 print_header()
-print("Bot is starting...\n")
+print("Bot is running...\n")
 app.run_polling()
