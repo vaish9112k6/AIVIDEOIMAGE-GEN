@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import threading
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
@@ -140,15 +141,8 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 app.add_handler(CallbackQueryHandler(button_handler))
 
-# --- Start bot in background thread ---
-def run_bot():
-    app.run_polling()
-
-bot_thread = threading.Thread(target=run_bot, daemon=True)
-bot_thread.start()
-
-# --- Pre-start menu while bot runs ---
-def pre_start_menu():
+# --- Menu thread while bot runs ---
+def menu_thread():
     while True:
         clear_screen()
         print_header()
@@ -164,10 +158,13 @@ def pre_start_menu():
             update_git()
         elif choice == "0":
             print(f"{RED}Exiting...{RESET}")
-            exit()
+            os._exit(0)
         else:
             print(f"{RED}❌ Invalid choice. Try again.{RESET}")
             input("Press Enter to continue...")
 
-# --- Run pre-start menu ---
-pre_start_menu()
+# --- Start menu in separate daemon thread ---
+threading.Thread(target=menu_thread, daemon=True).start()
+
+# --- Run bot in main thread ---
+asyncio.run(app.run_polling())
