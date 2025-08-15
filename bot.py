@@ -2,7 +2,10 @@ import os
 import json
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler, CallbackContext, filters
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    CallbackQueryHandler, ContextTypes, filters
+)
 
 CONFIG_FILE = "config.json"
 
@@ -33,25 +36,25 @@ IMG_BUTTON = config.get("IMG_BUTTON", "Image 🖼️")
 VID_BUTTON = config.get("VID_BUTTON", "Video 🎬")
 
 # --- /start command ---
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text(start_msg)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(start_msg)
 
 # --- Handle user messages ---
-def handle_message(update: Update, context: CallbackContext):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt = update.message.text.strip()
     keyboard = [
         [InlineKeyboardButton(IMG_BUTTON, callback_data=f"image|{prompt}"),
          InlineKeyboardButton(VID_BUTTON, callback_data=f"video|{prompt}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text("Choose what to generate:", reply_markup=reply_markup)
+    await update.message.reply_text("Choose what to generate:", reply_markup=reply_markup)
 
 # --- Handle button clicks ---
-def button_handler(update: Update, context: CallbackContext):
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+    await query.answer()
     media_type, prompt = query.data.split("|")
-    msg = query.message.reply_text("⏳ Generating... please wait")
+    msg = await query.message.reply_text("⏳ Generating... please wait")
 
     try:
         api_url = f"https://api-yshzap.vercel.app/api/aiapi/aivideo?prompt={prompt}&type={media_type}"
@@ -59,24 +62,22 @@ def button_handler(update: Update, context: CallbackContext):
         if resp["status"]:
             url = resp["data"]["url"]
             if media_type == "image":
-                query.message.reply_photo(photo=url, caption=f"Prompt: {prompt}")
+                await query.message.reply_photo(photo=url, caption=f"Prompt: {prompt}")
             else:
-                query.message.reply_video(video=url, caption=f"Prompt: {prompt}")
+                await query.message.reply_video(video=url, caption=f"Prompt: {prompt}")
         else:
-            query.message.reply_text("❌ Failed to generate AI content.")
+            await query.message.reply_text("❌ Failed to generate AI content.")
     except Exception as e:
-        query.message.reply_text(f"❌ Error: {e}")
+        await query.message.reply_text(f"❌ Error: {e}")
     finally:
-        msg.delete()
+        await msg.delete()
 
 # --- Main ---
-updater = Updater(bot_token)
-dp = updater.dispatcher
+app = ApplicationBuilder().token(bot_token).build()
 
-dp.add_handler(CommandHandler("start", start))
-dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-dp.add_handler(CallbackQueryHandler(button_handler))
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+app.add_handler(CallbackQueryHandler(button_handler))
 
 print("Bot is running...")
-updater.start_polling()
-updater.idle()
+app.run_polling()
