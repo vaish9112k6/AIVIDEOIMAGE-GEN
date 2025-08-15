@@ -71,12 +71,14 @@ def edit_config():
             with open(CONFIG_FILE, "w") as f:
                 json.dump(config, f, indent=4)
             print(f"{GREEN}\n✅ Config saved. Continuing...{RESET}")
+            input("Press Enter to continue...")
             break
         elif choice == "7":
             print(f"{RED}\n❌ Exiting without saving.{RESET}")
             exit()
         else:
             print(f"{RED}❌ Invalid choice. Try again.{RESET}")
+            input("Press Enter to continue...")
 
 # --- Git update function ---
 def update_git():
@@ -104,9 +106,10 @@ def pre_start_menu():
             break
         else:
             print(f"{RED}❌ Invalid choice. Try again.{RESET}")
+            input("Press Enter to continue...")
 
 # --- Ask to edit settings if missing or first run ---
-if not config["BOT_TOKEN"] or not config["OWNER_ID"]:
+if not os.path.exists(CONFIG_FILE) or not config["BOT_TOKEN"] or not config["OWNER_ID"]:
     print(f"{YELLOW}⚡ First run setup or missing Bot Token/Owner ID{RESET}")
     edit_config()
 else:
@@ -120,14 +123,13 @@ start_msg = config.get("START_MSG", "🤖 Welcome! Send me a prompt.")
 IMG_BUTTON = config.get("IMG_BUTTON", "Image 🖼️")
 VID_BUTTON = config.get("VID_BUTTON", "Video 🎬")
 
-# --- Pre-start menu ---
+# --- Run pre-start menu ---
 pre_start_menu()
 
-# --- /start command ---
+# --- Telegram bot handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(start_msg)
 
-# --- Handle user messages ---
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt = update.message.text.strip()
     keyboard = [
@@ -137,7 +139,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Choose what to generate:", reply_markup=reply_markup)
 
-# --- Handle button clicks ---
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -160,9 +161,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         await msg.delete()
 
-# --- Main bot ---
+# --- Start bot ---
 app = ApplicationBuilder().token(bot_token).build()
-
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 app.add_handler(CallbackQueryHandler(button_handler))
