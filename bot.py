@@ -3,6 +3,7 @@ import json
 import requests
 import threading
 import asyncio
+import uuid
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
@@ -20,6 +21,9 @@ RED = "\033[91m"
 YELLOW = "\033[93m"
 RESET = "\033[0m"
 BLINK = "\033[5m"
+
+# --- Prompt cache for safe callback_data ---
+PROMPT_CACHE = {}
 
 # --- Load config or create default ---
 if os.path.exists(CONFIG_FILE):
@@ -90,9 +94,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt = update.message.text.strip()
+    uid = str(uuid.uuid4())[:8]  # short unique ID
+    PROMPT_CACHE[uid] = prompt
+
     keyboard = [
-        [InlineKeyboardButton(config.get("IMG_BUTTON", "Image 🖼️"), callback_data=f"image|{prompt}"),
-         InlineKeyboardButton(config.get("VID_BUTTON", "Video 🎬"), callback_data=f"video|{prompt}")]
+        [
+            InlineKeyboardButton(config.get("IMG_BUTTON", "Image 🖼️"), callback_data=f"image|{uid}"),
+            InlineKeyboardButton(config.get("VID_BUTTON", "Video 🎬"), callback_data=f"video|{uid}")
+        ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Choose what to generate:", reply_markup=reply_markup)
@@ -100,7 +109,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    media_type, prompt = query.data.split("|")
+    media_type, uid = query.data.split("|")
+    prompt = PROMPT_CACHE.get(uid, "No prompt found")
     msg = await query.message.reply_text(f"{CYAN}⏳ Generating... please wait{RESET}")
 
     try:
@@ -118,6 +128,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(f"{RED}❌ Error: {e}{RESET}")
     finally:
         await msg.delete()
+        PROMPT_CACHE.pop(uid, None)
 
 # --- Initial setup ---
 if not os.path.exists(CONFIG_FILE) or not config["BOT_TOKEN"] or not config["OWNER_ID"]:
