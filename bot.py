@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import threading
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
@@ -87,54 +88,15 @@ def update_git():
     print(f"{GREEN}✅ Git update completed. Press Enter to continue...{RESET}")
     input()
 
-# --- Pre-start menu ---
-def pre_start_menu():
-    while True:
-        clear_screen()
-        print_header()
-        print(f"{BRIGHT_GREEN}Bot is starting...\n{RESET}")
-        print(f"{YELLOW}[1]{RESET} Back to Edit Settings")
-        print(f"{YELLOW}[2]{RESET} Update Git Repository")
-        print(f"{YELLOW}[3]{RESET} Start Bot")
-        choice = input(f"{BRIGHT_GREEN}Choose an option: {RESET}").strip()
-
-        if choice == "1":
-            edit_config()
-        elif choice == "2":
-            update_git()
-        elif choice == "3":
-            break
-        else:
-            print(f"{RED}❌ Invalid choice. Try again.{RESET}")
-            input("Press Enter to continue...")
-
-# --- Ask to edit settings if missing or first run ---
-if not os.path.exists(CONFIG_FILE) or not config["BOT_TOKEN"] or not config["OWNER_ID"]:
-    print(f"{YELLOW}⚡ First run setup or missing Bot Token/Owner ID{RESET}")
-    edit_config()
-else:
-    edit = input(f"{BRIGHT_GREEN}Do you want to edit bot settings? (y/n): {RESET}").strip().lower()
-    if edit == "y":
-        edit_config()
-
-bot_token = config["BOT_TOKEN"]
-owner_id = config["OWNER_ID"]
-start_msg = config.get("START_MSG", "🤖 Welcome! Send me a prompt.")
-IMG_BUTTON = config.get("IMG_BUTTON", "Image 🖼️")
-VID_BUTTON = config.get("VID_BUTTON", "Video 🎬")
-
-# --- Run pre-start menu ---
-pre_start_menu()
-
 # --- Telegram bot handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(start_msg)
+    await update.message.reply_text(config.get("START_MSG", "🤖 Welcome! Send me a prompt."))
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prompt = update.message.text.strip()
     keyboard = [
-        [InlineKeyboardButton(IMG_BUTTON, callback_data=f"image|{prompt}"),
-         InlineKeyboardButton(VID_BUTTON, callback_data=f"video|{prompt}")]
+        [InlineKeyboardButton(config.get("IMG_BUTTON", "Image 🖼️"), callback_data=f"image|{prompt}"),
+         InlineKeyboardButton(config.get("VID_BUTTON", "Video 🎬"), callback_data=f"video|{prompt}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Choose what to generate:", reply_markup=reply_markup)
@@ -161,13 +123,51 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         await msg.delete()
 
-# --- Start bot ---
+# --- Ask to edit settings if missing or first run ---
+if not os.path.exists(CONFIG_FILE) or not config["BOT_TOKEN"] or not config["OWNER_ID"]:
+    print(f"{YELLOW}⚡ First run setup or missing Bot Token/Owner ID{RESET}")
+    edit_config()
+else:
+    edit = input(f"{BRIGHT_GREEN}Do you want to edit bot settings? (y/n): {RESET}").strip().lower()
+    if edit == "y":
+        edit_config()
+
+bot_token = config["BOT_TOKEN"]
+
+# --- Build Telegram app ---
 app = ApplicationBuilder().token(bot_token).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 app.add_handler(CallbackQueryHandler(button_handler))
 
-clear_screen()
-print_header()
-print(f"{BRIGHT_GREEN}Bot is running...\n{RESET}")
-app.run_polling()
+# --- Start bot in background thread ---
+def run_bot():
+    app.run_polling()
+
+bot_thread = threading.Thread(target=run_bot, daemon=True)
+bot_thread.start()
+
+# --- Pre-start menu while bot runs ---
+def pre_start_menu():
+    while True:
+        clear_screen()
+        print_header()
+        print(f"{BRIGHT_GREEN}Bot is running...\n{RESET}")
+        print(f"{YELLOW}[1]{RESET} Back to Edit Settings")
+        print(f"{YELLOW}[2]{RESET} Update Git Repository")
+        print(f"{YELLOW}[0]{RESET} Exit")
+        choice = input(f"{BRIGHT_GREEN}Choose an option: {RESET}").strip()
+
+        if choice == "1":
+            edit_config()
+        elif choice == "2":
+            update_git()
+        elif choice == "0":
+            print(f"{RED}Exiting...{RESET}")
+            exit()
+        else:
+            print(f"{RED}❌ Invalid choice. Try again.{RESET}")
+            input("Press Enter to continue...")
+
+# --- Run pre-start menu ---
+pre_start_menu()
