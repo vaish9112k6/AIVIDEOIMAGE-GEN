@@ -47,8 +47,7 @@ def print_header():
 # --- Interactive settings editor ---
 def edit_config():
     while True:
-        clear_screen()
-        print_header()
+        print(f"\n{YELLOW}--- Edit Bot Settings ---{RESET}")
         print(f"{YELLOW}[1]{RESET} Edit Bot Token        : {config.get('BOT_TOKEN')}")
         print(f"{YELLOW}[2]{RESET} Edit Owner ID         : {config.get('OWNER_ID')}")
         print(f"{YELLOW}[3]{RESET} Edit Start Message    : {config.get('START_MSG')}")
@@ -56,7 +55,6 @@ def edit_config():
         print(f"{YELLOW}[5]{RESET} Edit Video Button     : {config.get('VID_BUTTON')}")
         print(f"{YELLOW}[6]{RESET} Save & Exit")
         print(f"{YELLOW}[7]{RESET} Exit without saving")
-        print(f"{CYAN}────────────────────────────────────────{RESET}")
         choice = input(f"{BRIGHT_GREEN}Enter number to edit: {RESET}").strip()
 
         if choice == "1":
@@ -73,21 +71,18 @@ def edit_config():
             with open(CONFIG_FILE, "w") as f:
                 json.dump(config, f, indent=4)
             print(f"{GREEN}\n✅ Config saved. Continuing...{RESET}")
-            input("Press Enter to continue...")
             break
         elif choice == "7":
             print(f"{RED}\n❌ Exiting without saving.{RESET}")
             exit()
         else:
             print(f"{RED}❌ Invalid choice. Try again.{RESET}")
-            input("Press Enter to continue...")
 
 # --- Git update function ---
 def update_git():
     print(f"{CYAN}\n⏳ Updating Git repository...{RESET}")
     os.system(f"git pull {REPO_URL}")
-    print(f"{GREEN}✅ Git update completed. Press Enter to continue...{RESET}")
-    input()
+    print(f"{GREEN}✅ Git update completed.{RESET}")
 
 # --- Telegram bot handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -124,7 +119,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         await msg.delete()
 
-# --- Ask to edit settings if missing or first run ---
+# --- Initial setup ---
 if not os.path.exists(CONFIG_FILE) or not config["BOT_TOKEN"] or not config["OWNER_ID"]:
     print(f"{YELLOW}⚡ First run setup or missing Bot Token/Owner ID{RESET}")
     edit_config()
@@ -141,29 +136,31 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 app.add_handler(CallbackQueryHandler(button_handler))
 
-# --- Menu thread while bot runs ---
+# --- Menu thread that prints header only once ---
 def menu_thread():
+    clear_screen()
+    print_header()
+    print(f"{BRIGHT_GREEN}Bot is running...\n{RESET}")
+    print(f"{YELLOW}[1]{RESET} Back to Edit Settings")
+    print(f"{YELLOW}[2]{RESET} Update Git Repository")
+    print(f"{YELLOW}[0]{RESET} Exit\n")
+
     while True:
-        clear_screen()
-        print_header()
-        print(f"{BRIGHT_GREEN}Bot is running...\n{RESET}")
-        print(f"{YELLOW}[1]{RESET} Back to Edit Settings")
-        print(f"{YELLOW}[2]{RESET} Update Git Repository")
-        print(f"{YELLOW}[0]{RESET} Exit")
         choice = input(f"{BRIGHT_GREEN}Choose an option: {RESET}").strip()
 
         if choice == "1":
             edit_config()
+            print("\n[1] Back to Edit Settings  [2] Update Git Repository  [0] Exit\n")
         elif choice == "2":
             update_git()
+            print("\n[1] Back to Edit Settings  [2] Update Git Repository  [0] Exit\n")
         elif choice == "0":
             print(f"{RED}Exiting...{RESET}")
             os._exit(0)
         else:
             print(f"{RED}❌ Invalid choice. Try again.{RESET}")
-            input("Press Enter to continue...")
 
-# --- Start menu in separate daemon thread ---
+# --- Start menu in daemon thread ---
 threading.Thread(target=menu_thread, daemon=True).start()
 
 # --- Run bot in main thread ---
